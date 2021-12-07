@@ -1,5 +1,5 @@
 class ApplicationController < ActionController::API
-  respond_to :json
+  # respond_to :json
 
   def render_jsonapi_response(resource)
     if resource.errors.empty?
