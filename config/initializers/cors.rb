@@ -11,6 +11,17 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
 
     resource "*",
       headers: :any,
+      :expose => [
+        "X-Requested-With",
+        "Content-Type",
+        "Authorization",
+        "Accept",
+        "Client-Security-Token",
+        "Accept-Encoding",
+        "iat",
+        "exp",
+        "jti",
+      ],
       methods: [:get, :post, :put, :patch, :delete, :options, :head]
   end
 end

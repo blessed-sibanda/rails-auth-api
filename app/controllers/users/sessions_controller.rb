@@ -1,6 +1,16 @@
 # frozen_string_literal: true
 
 class Users::SessionsController < Devise::SessionsController
+  private
+
+  # def respond_with(resource, _opts = {})
+  #   render_jsonapi_response(resource)
+  # end
+
+  # def respond_to_on_destroy
+  #   head :no_content
+  # end
+
   # before_action :configure_sign_in_params, only: [:create]
 
   # GET /resource/sign_in
