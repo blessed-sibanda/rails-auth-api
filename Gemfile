@@ -46,3 +46,10 @@ gem "tzinfo-data", platforms: [:mingw, :mswin, :x64_mingw, :jruby]
 gem "devise", "~> 4.8"
 
 gem "devise-jwt", "~> 0.9.0"
+
+gem "pager_api", "~> 0.3.2"
+
+gem "will_paginate", "~> 3.3"
+
+gem "pagy", "~> 5.6"
+gem "kaminari", "~> 1.2"
