@@ -4,7 +4,7 @@ module ApiSpecsHelpers
   end
 
   def token_for(user)
-    post "/api/login", params: {
+    post "/api/login", xhr: true, params: {
                          user: {
                            email: user.email,
                            password: user.password,

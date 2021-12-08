@@ -16,10 +16,44 @@ RSpec.describe "Users", type: :request do
     } }
   end
 
-  describe "POST /api/signin" do
+  def get_link_by_text(html_body, text)
+    doc = Nokogiri::HTML(html_body.encoded)
+
+    loop do
+      children = doc.children
+      break if children.empty?
+
+      if children.length == 1 &&
+         children.first.text == text &&
+         children.first.parent.name = "a"
+        return children.first.parent
+      end
+
+      doc = children
+    end
+  end
+
+  def check_confirmation_email_for(user)
+    perform_enqueued_jobs
+
+    email = find_email(user.email)
+    expect(email).not_to be_nil
+    expect(email.subject).to eq "Confirmation instructions"
+
+    confirmation_link = get_link_by_text(email.body, "Confirm my account")
+    expect(confirmation_link).to_not be_nil
+
+    confirmation_url = confirmation_link.attributes["href"].value
+
+    expect(user.reload.confirmed?).to be_falsey
+    get confirmation_url, xhr: true
+    expect(user.reload.confirmed?).to be_truthy
+  end
+
+  describe "POST /api/login" do
     context "wrong credentials" do
       it "returns 401 unauthorized" do
-        post "/api/login", params: {
+        post "/api/login", xhr: true, params: {
                              user: {
                                email: "some-random-email@example.com",
                                password: "very wrong password",
@@ -32,7 +66,7 @@ RSpec.describe "Users", type: :request do
     context "correct credentials but unconfirmed user" do
       it "returns 401 unauthorized" do
         user = create :user, :unconfirmed
-        post "/api/login", params: {
+        post "/api/login", xhr: true, params: {
                              user: {
                                email: user.email,
                                password: user.password,
@@ -45,7 +79,7 @@ RSpec.describe "Users", type: :request do
     context "correct credentials" do
       it "returns successful response" do
         user = create :user
-        post "/api/login", params: {
+        post "/api/login", xhr: true, params: {
                              user: {
                                email: user.email,
                                password: user.password,
@@ -114,7 +148,7 @@ RSpec.describe "Users", type: :request do
     context "for unconfirmed user" do
       it "resends account confirmation email" do
         user = create :user, :unconfirmed
-        post "/confirmation", params: { user: { email: user.email } }
+        post "/confirmation", xhr: true, params: { user: { email: user.email } }
         check_confirmation_email_for user
       end
     end
@@ -123,7 +157,7 @@ RSpec.describe "Users", type: :request do
       let(:user) { create :user }
 
       before do
-        post "/confirmation", params: { user: { email: user.email } }
+        post "/confirmation", xhr: true, params: { user: { email: user.email } }
       end
 
       it "does not send confirmation email" do
@@ -140,51 +174,17 @@ RSpec.describe "Users", type: :request do
     end
   end
 
-  def get_link_by_text(html_body, text)
-    doc = Nokogiri::HTML(html_body.encoded)
-
-    loop do
-      children = doc.children
-      break if children.empty?
-
-      if children.length == 1 &&
-         children.first.text == text &&
-         children.first.parent.name = "a"
-        return children.first.parent
-      end
-
-      doc = children
-    end
-  end
-
-  def check_confirmation_email_for(user)
-    perform_enqueued_jobs
-
-    email = find_email(user.email)
-    expect(email).not_to be_nil
-    expect(email.subject).to eq "Confirmation instructions"
-
-    confirmation_link = get_link_by_text(email.body, "Confirm my account")
-    expect(confirmation_link).to_not be_nil
-
-    confirmation_url = confirmation_link.attributes["href"].value
-
-    expect(user.reload.confirmed?).to be_falsey
-    get confirmation_url
-    expect(user.reload.confirmed?).to be_truthy
-  end
-
   describe "POST /api/signup" do
     context "with valid attributes" do
       it "creates new user" do
         expect {
-          post "/api/signup", params: valid_attributes
+          post "/api/signup", xhr: true, params: valid_attributes
         }.to change(User, :count).by(1)
         expect(response).to have_http_status(:success)
       end
 
       it "sends account confirmation email" do
-        post "/api/signup", params: valid_attributes
+        post "/api/signup", xhr: true, params: valid_attributes
         user = User.find_by_email valid_attributes[:user][:email]
         check_confirmation_email_for user
       end
@@ -193,7 +193,7 @@ RSpec.describe "Users", type: :request do
     context "with invalid attributes" do
       it "does not create new user" do
         expect {
-          post "/api/signup", params: invalid_attributes
+          post "/api/signup", xhr: true, params: invalid_attributes
         }.to_not change(User, :count)
         expect(response).to have_http_status(:unprocessable_entity)
       end
@@ -211,8 +211,11 @@ RSpec.describe "Users", type: :request do
       context "with valid attributes" do
         it "updates user details" do
           valid_attributes[:user][:current_password] = "my-secret"
+          valid_attributes[:user][:avatar_image] = Rack::Test::UploadedFile.new("#{Rails.root}/spec/fixtures/user.jpg")
+          expect(user.avatar_image.persisted?).to be_nil
           put "/api/signup", xhr: true, params: valid_attributes, headers: { 'Authorization': @token }
           expect(user.reload.name).to eq valid_attributes[:user][:name]
+          expect(user.avatar_image.persisted?).to_not be_nil
           expect(response).to have_http_status(:success)
         end
       end

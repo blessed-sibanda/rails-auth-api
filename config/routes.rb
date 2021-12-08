@@ -3,7 +3,6 @@ Rails.application.routes.draw do
   # For details on the DSL available within this file, see https://guides.rubyonrails.org/routing.html
   resources :users, only: %i[index show]
   devise_for :users,
-    defaults: { format: :json },
     path: "",
     path_names: {
       sign_in: "api/login",
@@ -13,5 +12,6 @@ Rails.application.routes.draw do
     controllers: {
       sessions: "auth/sessions",
       registrations: "auth/registrations",
+      passwords: "auth/passwords",
     }
 end

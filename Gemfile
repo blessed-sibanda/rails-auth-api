@@ -54,3 +54,5 @@ gem "will_paginate", "~> 3.3"
 
 gem "pagy", "~> 5.6"
 gem "kaminari", "~> 1.2"
+
+gem "haml-rails", "~> 2.0"

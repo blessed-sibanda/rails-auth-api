@@ -9,4 +9,8 @@ FactoryBot.define do
   trait :unconfirmed do
     confirmed_at { nil }
   end
+
+  trait :random do
+    confirmed_at { [Time.now, nil].sample }
+  end
 end
