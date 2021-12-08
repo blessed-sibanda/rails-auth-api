@@ -69,10 +69,12 @@ RSpec.describe "Users", type: :request do
     it "returns a paginated list of users without email addresses" do
       expect(json["users"].length <= User.per_page).to be_truthy
       expect(json["_pagination"]).not_to be_nil
+      expect(json["_links"]["next_page"]).not_to be_nil
       expect(json["_links"]).not_to be_nil
-      expect(json["_pagination"]["total_pages"]).to eq((User.count.to_f / User.per_page).ceil)
-      expect(json["users"][0]["email"]).to be_nil
-      expect(json["users"][0]["name"]).not_to be_nil
+      total_pages = (User.count.to_f / User.per_page).ceil
+      expect(json["_pagination"]["total_pages"]).to eq total_pages
+      expect(json["users"][rand(User.per_page)]["email"]).to be_nil
+      expect(json["users"][rand(User.per_page)]["name"]).not_to be_nil
     end
 
     it "orders results in ascending order of creation time" do
@@ -99,6 +101,7 @@ RSpec.describe "Users", type: :request do
         expect(json["email"]).not_to be_nil
       end
     end
+
     context "un-authenticated user" do
       it "returns unauthorized" do
         get "/users/#{User.all.sample.id}", xhr: true
@@ -108,22 +111,29 @@ RSpec.describe "Users", type: :request do
   end
 
   describe "POST /confirmation" do
-    it "resends account confirmation email" do
-      user = create :user, :unconfirmed
-      post "/confirmation", params: { user: { email: user.email } }
-      check_confirmation_email_for user
+    context "for unconfirmed user" do
+      it "resends account confirmation email" do
+        user = create :user, :unconfirmed
+        post "/confirmation", params: { user: { email: user.email } }
+        check_confirmation_email_for user
+      end
     end
+
     context "for confirmed user" do
       let(:user) { create :user }
+
       before do
         post "/confirmation", params: { user: { email: user.email } }
       end
+
       it "does not send confirmation email" do
         expect(find_email(user.email)).to be_nil
       end
+
       it "returns unprocessable entity status" do
         expect(response).to have_http_status(:unprocessable_entity)
       end
+
       it "returns helpful error message" do
         expect(json["errors"]["email"]).to eq ["was already confirmed, please try signing in"]
       end
@@ -173,7 +183,7 @@ RSpec.describe "Users", type: :request do
         expect(response).to have_http_status(:success)
       end
 
-      it "delivers account confirmation email" do
+      it "sends account confirmation email" do
         post "/api/signup", params: valid_attributes
         user = User.find_by_email valid_attributes[:user][:email]
         check_confirmation_email_for user
@@ -192,10 +202,12 @@ RSpec.describe "Users", type: :request do
 
   describe "PUT /api/signup" do
     let!(:user) { create :user }
+
     context "authenticated user" do
       before do
         @token = token_for(user)
       end
+
       context "with valid attributes" do
         it "updates user details" do
           valid_attributes[:user][:current_password] = "my-secret"
@@ -220,6 +232,7 @@ RSpec.describe "Users", type: :request do
         end
       end
     end
+
     context "un-authenticated user" do
       it "returns unauthorized" do
         put "/api/signup", xhr: true
@@ -234,10 +247,12 @@ RSpec.describe "Users", type: :request do
     before do
       @token = token_for(user)
     end
+
     it "returns no-content" do
       delete "/api/logout", xhr: true, headers: { 'Authorization': @token }
       expect(response).to have_http_status(:no_content)
     end
+
     it "revokes the token" do
       delete "/api/logout", xhr: true, headers: { 'Authorization': @token }
       get "/users/#{user.id}",
