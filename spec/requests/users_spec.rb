@@ -107,6 +107,63 @@ RSpec.describe "Users", type: :request do
     end
   end
 
+  describe "POST /confirmation" do
+    it "resends account confirmation email" do
+      user = create :user, :unconfirmed
+      post "/confirmation", params: { user: { email: user.email } }
+      check_confirmation_email_for user
+    end
+    context "for confirmed user" do
+      let(:user) { create :user }
+      before do
+        post "/confirmation", params: { user: { email: user.email } }
+      end
+      it "does not send confirmation email" do
+        expect(find_email(user.email)).to be_nil
+      end
+      it "returns unprocessable entity status" do
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+      it "returns helpful error message" do
+        expect(json["errors"]["email"]).to eq ["was already confirmed, please try signing in"]
+      end
+    end
+  end
+
+  def get_link_by_text(html_body, text)
+    doc = Nokogiri::HTML(html_body.encoded)
+
+    loop do
+      children = doc.children
+      break if children.empty?
+
+      if children.length == 1 &&
+         children.first.text == text &&
+         children.first.parent.name = "a"
+        return children.first.parent
+      end
+
+      doc = children
+    end
+  end
+
+  def check_confirmation_email_for(user)
+    perform_enqueued_jobs
+
+    email = find_email(user.email)
+    expect(email).not_to be_nil
+    expect(email.subject).to eq "Confirmation instructions"
+
+    confirmation_link = get_link_by_text(email.body, "Confirm my account")
+    expect(confirmation_link).to_not be_nil
+
+    confirmation_url = confirmation_link.attributes["href"].value
+
+    expect(user.reload.confirmed?).to be_falsey
+    get confirmation_url
+    expect(user.reload.confirmed?).to be_truthy
+  end
+
   describe "POST /api/signup" do
     context "with valid attributes" do
       it "creates new user" do
@@ -114,6 +171,12 @@ RSpec.describe "Users", type: :request do
           post "/api/signup", params: valid_attributes
         }.to change(User, :count).by(1)
         expect(response).to have_http_status(:success)
+      end
+
+      it "delivers account confirmation email" do
+        post "/api/signup", params: valid_attributes
+        user = User.find_by_email valid_attributes[:user][:email]
+        check_confirmation_email_for user
       end
     end
 
