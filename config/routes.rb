@@ -12,6 +12,5 @@ Rails.application.routes.draw do
     controllers: {
       sessions: "auth/sessions",
       registrations: "auth/registrations",
-      passwords: "auth/passwords",
     }
 end
